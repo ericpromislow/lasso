@@ -628,11 +628,13 @@ func SetupMockDB(t *testing.T) (*MockDBClient, *MockTXClient) {
 	txC := NewMockTXClient(gomock.NewController(t))
 	// stmt := NewMockStmt(gomock.NewController())
 	txC.EXPECT().Exec(fmt.Sprintf(createTableFmt, "testStoreObject")).Return(nil)
+	txC.EXPECT().Exec(createLabelsTableStr).Return(nil)
 	txC.EXPECT().Commit().Return(nil)
 	dbC.EXPECT().BeginTx(gomock.Any(), true).Return(txC, nil)
 
 	// use stmt mock here
 	dbC.EXPECT().Prepare(fmt.Sprintf(upsertStmtFmt, "testStoreObject")).Return(&sql.Stmt{})
+	dbC.EXPECT().Prepare(upsertLabelsStmtTemplate).Return(&sql.Stmt{})
 	dbC.EXPECT().Prepare(fmt.Sprintf(deleteStmtFmt, "testStoreObject")).Return(&sql.Stmt{})
 	dbC.EXPECT().Prepare(fmt.Sprintf(getStmtFmt, "testStoreObject")).Return(&sql.Stmt{})
 	dbC.EXPECT().Prepare(fmt.Sprintf(listStmtFmt, "testStoreObject")).Return(&sql.Stmt{})

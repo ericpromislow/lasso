@@ -27,6 +27,14 @@ const (
 		objectnonce BLOB,
 		dekid INTEGER
 	)`
+	// 'key' contains values from the column key of table nodes
+	createLabelsTableStr = `CREATE TABLE IF NOT EXISTS "node_labels" (
+		key TEXT NOT NULL REFERENCES node(key) ON DELETE CASCADE,
+		label TEXT NOT NULL,
+		value TEXT NOT NULL,
+		PRIMARY KEY (key, label)
+	)`
+	upsertLabelsStmtTemplate = `REPLACE INTO "node_labels"(key, label, value) VALUES (?, ?, ?)`
 )
 
 // Store is a SQLite-backed cache.Store
@@ -49,6 +57,8 @@ type Store struct {
 	getStmt      *sql.Stmt
 	listStmt     *sql.Stmt
 	listKeysStmt *sql.Stmt
+
+	upsertLabelsStmt *sql.Stmt
 
 	afterUpsert []func(key string, obj any, tx db.TXClient) error
 	afterDelete []func(key string, tx db.TXClient) error
@@ -90,6 +100,10 @@ func NewStore(example any, keyFunc cache.KeyFunc, c DBClient, shouldEncrypt bool
 	if err != nil {
 		return nil, &db.QueryError{QueryString: createTableQuery, Err: err}
 	}
+	err = txC.Exec(createLabelsTableStr)
+	if err != nil {
+		return nil, &db.QueryError{QueryString: createLabelsTableStr, Err: err}
+	}
 
 	err = txC.Commit()
 	if err != nil {
@@ -103,6 +117,7 @@ func NewStore(example any, keyFunc cache.KeyFunc, c DBClient, shouldEncrypt bool
 	s.listKeysQuery = fmt.Sprintf(listKeysStmtFmt, db.Sanitize(s.name))
 
 	s.upsertStmt = s.Prepare(s.upsertQuery)
+	s.upsertLabelsStmt = s.Prepare(upsertLabelsStmtTemplate)
 	s.deleteStmt = s.Prepare(s.deleteQuery)
 	s.getStmt = s.Prepare(s.getQuery)
 	s.listStmt = s.Prepare(s.listQuery)
